@@ -1,0 +1,3 @@
+include ':autodimensions'
+//include ':app'
+rootProject.name = "AutoDemensions"
