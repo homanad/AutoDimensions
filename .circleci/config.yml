@@ -1,0 +1,78 @@
+version: 2
+
+jobs:
+  build:
+    description: |
+      Start building
+    working_directory: ~/project
+    docker:
+      - image: circleci/android:api-30
+    environment:
+      _JAVA_OPTIONS: "-Xmx3g"
+#      GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx2048m -XX:+HeapDumpOnOutOfMemoryError"'
+
+    steps:
+      - checkout
+#      - run:
+#          name: Update sdk licenses
+#          command: |
+#            yes | sdkmanager --licenses --proxy=http --proxy_host=${proxyHost} --proxy_port=${proxyPort} || true
+#            yes | sdkmanager --update --proxy=http --proxy_host=${proxyHost} --proxy_port=${proxyPort} || true
+      - run: yes | sdkmanager --licenses || exit 0
+      - run: yes | sdkmanager --update || exit 0
+      - run:
+          name: Chmod permissions
+          command: |
+            sudo chmod +x ./gradlew
+            sudo chmod +x ./build.sh
+      - restore_cache:
+          keys:
+            - dependencies-{{ checksum "build.gradle" }}
+            - dependencies-
+      - run:
+          name: Download Dependencies
+          command: ./gradlew androidDependencies
+      - save_cache:
+          paths:
+            - ~/.gradle
+          key: dependencies-{{ checksum "build.gradle" }}
+      - run:
+          name: Build Release
+          command: ./gradlew assembleRelease --no-daemon --parallel --configure-on-demand
+      - store_artifacts:
+          path: autodimensions/build/outputs/aar/
+          destination: /
+#      - persist_to_workspace:
+#          root: .
+#          paths:
+#            - .
+#  deploy:
+#    machine: true
+#    steps:
+#      - attach_workspace:
+#          at: ~/project/
+#      - run:
+#          name: Clone tvplugin_externals_v3_deploy
+#          working_directory: ~/deploy
+#          command: |
+#            GITHUB_TOKEN=db945649317090a4d4a02a7b52495e0543afc373
+#            git clone --depth 1 https://${GITHUB_TOKEN}@github.sec.samsung.net/VD7-SmartView/tvplugin_android_externals_v3_deploy.git .
+#      - deploy:
+#          name: Deploy
+#          working_directory: ~/deploy
+#          command: |
+#            git config credential.helper 'cache --timeout=120'
+#            git config user.email "circleci.deployer@samsung.com"
+#            git config user.name "CircleCI Deployer"
+#            cp -r ~/project/libs/* ~/deploy
+#            git add .
+#            git commit --allow-empty -m "tvplugin_externals_v3 deployment, build number: $CIRCLE_BUILD_NUM"
+#            git push -q origin master
+#workflows:
+#  version: 2
+#  build_deploy:
+#    jobs:
+#      - build
+#      - deploy:
+#          requires:
+#            - build
